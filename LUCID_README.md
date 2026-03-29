@@ -57,6 +57,51 @@ python bench_lucid.py
 - `use_diag_solve=False` for raw kernel timing (excludes host-side diagonal inverse)
 - LUCID backward is ~1.0-1.9x FA3 backward despite sequential inter-block dependencies
 
+### End-to-End Attention Layer (forward + backward with autograd)
+
+**Config:** B=1, dtype=bf16, `use_diag_solve=True` (includes diagonal inverse overhead)
+
+```
+python bench_lucid_e2e.py
+```
+
+#### LUCID Forward Substitution
+
+| Config | Seqlen | Heads | D | Fwd (ms) | Bwd (ms) | F+B (ms) | Peak Mem (MB) |
+|--------|--------|-------|---|----------|----------|----------|---------------|
+| 1 head | 512 | 1 | 128 | 0.46 | 0.85 | 1.31 | 70 |
+| 1 head | 1024 | 1 | 128 | 0.78 | 0.87 | 1.65 | 73 |
+| 1 head | 2048 | 1 | 128 | 0.52 | 0.92 | 1.45 | 79 |
+| 1 head | 4096 | 1 | 128 | 0.82 | 0.86 | 1.68 | 91 |
+| 1 head | 8192 | 1 | 128 | 1.02 | 1.08 | 2.10 | 115 |
+| 4 heads | 512 | 4 | 128 | 0.64 | 1.03 | 1.67 | 80 |
+| 4 heads | 2048 | 4 | 128 | 0.78 | 0.90 | 1.68 | 120 |
+| 4 heads | 8192 | 4 | 128 | 1.08 | 1.86 | 2.94 | 277 |
+| 8 heads | 512 | 8 | 128 | 0.67 | 0.90 | 1.58 | 93 |
+| 8 heads | 2048 | 8 | 128 | 0.78 | 0.89 | 1.68 | 172 |
+| 8 heads | 8192 | 8 | 128 | 1.46 | 3.01 | 4.46 | 487 |
+
+#### FlashAttention-3 Causal (baseline, different operation)
+
+| Config | Seqlen | Heads | D | Fwd (ms) | Bwd (ms) | F+B (ms) | Peak Mem (MB) |
+|--------|--------|-------|---|----------|----------|----------|---------------|
+| 1 head | 512 | 1 | 128 | 0.16 | 0.38 | 0.54 | 68 |
+| 1 head | 1024 | 1 | 128 | 0.25 | 0.40 | 0.65 | 70 |
+| 1 head | 2048 | 1 | 128 | 0.24 | 0.41 | 0.65 | 72 |
+| 1 head | 4096 | 1 | 128 | 0.26 | 0.41 | 0.67 | 78 |
+| 1 head | 8192 | 1 | 128 | 0.31 | 0.54 | 0.85 | 88 |
+| 4 heads | 512 | 4 | 128 | 0.24 | 0.41 | 0.65 | 72 |
+| 4 heads | 2048 | 4 | 128 | 0.24 | 0.40 | 0.64 | 88 |
+| 4 heads | 8192 | 4 | 128 | 0.32 | 0.68 | 1.00 | 151 |
+| 8 heads | 512 | 8 | 128 | 0.24 | 0.39 | 0.63 | 78 |
+| 8 heads | 2048 | 8 | 128 | 0.24 | 0.40 | 0.64 | 109 |
+| 8 heads | 8192 | 8 | 128 | 0.43 | 0.90 | 1.33 | 236 |
+
+**Hardware/Software:**
+- GPU: NVIDIA GH200 120GB (SM90 Hopper), 102 GB HBM3
+- CUDA 12.8, PyTorch 2.7, CUTLASS 4.4, CuTe DSL
+- `nvidia-cutlass-dsl>=4.4.1`, `quack-kernels>=0.2.10`, `apache-tvm-ffi`
+
 ## Architecture
 
 ### Forward Kernel
